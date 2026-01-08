@@ -9,6 +9,7 @@ import Settings from './components/Settings';
 import Profile from './components/Profile';
 import CalendarTab from './components/CalendarTab';
 import Savings from './components/Savings';
+import Notification from './components/Notification';
 
 const getMonday = (date = new Date()) => {
   const d = new Date(date);
@@ -30,6 +31,7 @@ const INITIAL_BUDGET: UserBudget = {
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('profile');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [notification, setNotification] = useState<{message: string, id: number} | null>(null);
   
   const [expenses, setExpenses] = useState<Expense[]>(() => {
     const saved = localStorage.getItem('expenses');
@@ -100,9 +102,20 @@ const App: React.FC = () => {
     }
   }, [user]);
 
+  const showNotification = (message: string) => {
+    setNotification({ message, id: Date.now() });
+    setTimeout(() => {
+      setNotification(null);
+    }, 3000);
+  };
+
   const handleAddExpense = (expense: Omit<Expense, 'id'>) => {
     const newExpense = { ...expense, id: Date.now().toString() };
-    setExpenses(prev => [...prev, newExpense]);
+    setExpenses(prev => {
+      const updated = [...prev, newExpense];
+      showNotification(`Added ₹${expense.amount} for ${expense.category}`);
+      return updated;
+    });
     
     // Update weekly budget
     setBudget(prev => {
@@ -160,6 +173,8 @@ const App: React.FC = () => {
         return <CalendarTab />;
       case 'savings':
         return <Savings budget={budget} />;
+      case 'history':
+        return <History expenses={expenses} onDelete={deleteExpense} />;
       case 'profile':
         return <Profile user={user} onLogin={setUser} onLogout={() => setUser(null)} />;
       default:
@@ -184,6 +199,13 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-1 overflow-y-auto px-6 py-6 pb-32 z-10 relative">
+        {notification && (
+          <Notification 
+            key={notification.id}
+            message={notification.message} 
+            onClose={() => setNotification(null)} 
+          />
+        )}
         {renderContent()}
       </main>
 
@@ -200,6 +222,7 @@ const App: React.FC = () => {
             </button>
         </div>
         
+        <NavButton active={activeTab === 'history'} onClick={() => { setActiveTab('history'); setShowAddForm(false); }} icon="📜" label="History" />
         <NavButton active={activeTab === 'insights'} onClick={() => { setActiveTab('insights'); setShowAddForm(false); }} icon="✨" label="AI" />
         <NavButton active={activeTab === 'savings'} onClick={() => { setActiveTab('savings'); setShowAddForm(false); }} icon="💰" label="Savings" />
         <NavButton active={activeTab === 'profile'} onClick={() => { setActiveTab('profile'); setShowAddForm(false); }} icon="�" label="Profile" />
